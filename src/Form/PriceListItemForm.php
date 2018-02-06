@@ -11,14 +11,13 @@ use Drupal\Core\Form\FormStateInterface;
  * @ingroup commerce_pricelist
  */
 class PriceListItemForm extends ContentEntityForm {
+
   /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     /* @var $entity \Drupal\commerce_pricelist\Entity\PriceListItem */
     $form = parent::buildForm($form, $form_state);
-    $entity = $this->entity;
-
     return $form;
   }
 
@@ -41,7 +40,7 @@ class PriceListItemForm extends ContentEntityForm {
           '%label' => $entity->label(),
         ]));
     }
-    $form_state->setRedirect('entity.price_list_item.canonical', ['price_list_item' => $entity->id()]);
+    $form_state->setRedirect('entity.price_list.canonical', ['price_list' => $entity->getPriceListId()]);
   }
 
 }

@@ -4,10 +4,9 @@ namespace Drupal\commerce_pricelist\Entity;
 
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
-use Drupal\Core\Entity\ContentEntityBase;
+use Drupal\commerce\Entity\CommerceContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
 use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\commerce_pricelist\PriceListInterface;
 use Drupal\user\UserInterface;
 
 /**
@@ -22,15 +21,15 @@ use Drupal\user\UserInterface;
  *   handlers = {
  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
  *     "list_builder" = "Drupal\commerce_pricelist\PriceListListBuilder",
- *     "views_data" = "Drupal\commerce_pricelist\Entity\PriceListViewsData",
- *
+ *     "views_data" = "Drupal\commerce_pricelist\PriceListViewsData",
+ *     "access" = "Drupal\commerce\EntityAccessControlHandler",
+ *     "permission_provider" = "Drupal\commerce\EntityPermissionProvider",
  *     "form" = {
  *       "default" = "Drupal\commerce_pricelist\Form\PriceListForm",
  *       "add" = "Drupal\commerce_pricelist\Form\PriceListForm",
  *       "edit" = "Drupal\commerce_pricelist\Form\PriceListForm",
  *       "delete" = "Drupal\commerce_pricelist\Form\PriceListDeleteForm",
  *     },
- *     "access" = "Drupal\commerce_pricelist\PriceListAccessControlHandler",
  *     "route_provider" = {
  *       "html" = "Drupal\commerce_pricelist\PriceListHtmlRouteProvider",
  *     },
@@ -56,16 +55,17 @@ use Drupal\user\UserInterface;
  *   field_ui_base_route = "entity.price_list_type.edit_form"
  * )
  */
-class PriceList extends ContentEntityBase implements PriceListInterface {
+class PriceList extends CommerceContentEntityBase implements PriceListInterface {
   use EntityChangedTrait;
+
   /**
    * {@inheritdoc}
    */
   public static function preCreate(EntityStorageInterface $storage_controller, array &$values) {
     parent::preCreate($storage_controller, $values);
-    $values += array(
+    $values += [
       'user_id' => \Drupal::currentUser()->id(),
-    );
+    ];
   }
 
   /**
@@ -153,20 +153,47 @@ class PriceList extends ContentEntityBase implements PriceListInterface {
   /**
    * {@inheritdoc}
    */
+  public function getItems() {
+    // TODO: Implement getItems() method.
+    $storage = $this->entityTypeManager()->getStorage('price_list_item');
+    return $storage->loadMultipleByPriceList($this->id());
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
-    $fields['id'] = BaseFieldDefinition::create('integer')
-      ->setLabel(t('ID'))
-      ->setDescription(t('The ID of the Price list entity.'))
-      ->setReadOnly(TRUE);
-    $fields['type'] = BaseFieldDefinition::create('entity_reference')
-      ->setLabel(t('Type'))
-      ->setDescription(t('The Price list type/bundle.'))
-      ->setSetting('target_type', 'price_list_type')
-      ->setRequired(TRUE);
-    $fields['uuid'] = BaseFieldDefinition::create('uuid')
-      ->setLabel(t('UUID'))
-      ->setDescription(t('The UUID of the Price list entity.'))
-      ->setReadOnly(TRUE);
+    $fields = parent::baseFieldDefinitions($entity_type);
+
+    $fields['weight'] = BaseFieldDefinition::create('integer')
+      ->setLabel(t('Weight'))
+      ->setDescription(t('The weight of this pricelist in relation to other pricelists.'))
+      ->setDefaultValue(0);
+    $fields['status'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(t('Publishing status'))
+      ->setDescription(t('A boolean indicating whether the Price list is published.'))
+      ->setDefaultValue(TRUE);
+
+    $fields['name'] = BaseFieldDefinition::create('string')
+      ->setLabel(t('Name'))
+      ->setDescription(t('The name of the Price list entity.'))
+      ->setRequired(TRUE)
+      ->setSettings([
+        'max_length' => 50,
+        'text_processing' => 0,
+      ])
+      ->setDefaultValue('')
+      ->setDisplayOptions('view', [
+        'label' => 'above',
+        'type' => 'string',
+        'weight' => 1,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'string_textfield',
+        'weight' => 1,
+      ])
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', TRUE);
 
     $fields['user_id'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(t('Authored by'))
@@ -176,53 +203,69 @@ class PriceList extends ContentEntityBase implements PriceListInterface {
       ->setSetting('handler', 'default')
       ->setDefaultValueCallback('Drupal\node\Entity\Node::getCurrentUserId')
       ->setTranslatable(TRUE)
-      ->setDisplayOptions('view', array(
+      ->setDisplayOptions('view', [
         'label' => 'hidden',
         'type' => 'author',
-        'weight' => 0,
-      ))
-      ->setDisplayOptions('form', array(
+        'weight' => 2,
+      ])
+      ->setDisplayOptions('form', [
         'type' => 'entity_reference_autocomplete',
-        'weight' => 5,
-        'settings' => array(
+        'weight' => 2,
+        'settings' => [
           'match_operator' => 'CONTAINS',
           'size' => '60',
           'autocomplete_type' => 'tags',
           'placeholder' => '',
-        ),
-      ))
+        ],
+      ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    $fields['name'] = BaseFieldDefinition::create('string')
-      ->setLabel(t('Name'))
-      ->setDescription(t('The name of the Price list entity.'))
-      ->setSettings(array(
-        'max_length' => 50,
-        'text_processing' => 0,
-      ))
+    $fields['start_date'] = BaseFieldDefinition::create('datetime')
+      ->setLabel(t('Start date'))
+      ->setDescription(t('The start date of the Price list entity.'))
+      ->setRevisionable(TRUE)
+      ->setSettings([
+        'datetime_type' => 'datetime',
+      ])
       ->setDefaultValue('')
-      ->setDisplayOptions('view', array(
+      ->setDisplayOptions('view', [
         'label' => 'above',
-        'type' => 'string',
-        'weight' => -4,
-      ))
-      ->setDisplayOptions('form', array(
-        'type' => 'string_textfield',
-        'weight' => -4,
-      ))
+        'type' => 'datetime_default',
+        'settings' => [
+          'format_type' => 'medium',
+        ],
+        'weight' => 3,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'datetime_default',
+        'weight' => 3,
+      ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
-    $fields['weight'] = BaseFieldDefinition::create('integer')
-      ->setLabel(t('Weight'))
-      ->setDescription(t('The weight of this pricelist in relation to other pricelists.'))
-      ->setDefaultValue(0);
-
-    $fields['status'] = BaseFieldDefinition::create('boolean')
-      ->setLabel(t('Publishing status'))
-      ->setDescription(t('A boolean indicating whether the Price list is published.'))
-      ->setDefaultValue(TRUE);
+    $fields['end_date'] = BaseFieldDefinition::create('datetime')
+      ->setLabel(t('End date'))
+      ->setDescription(t('The end date of the Price list entity.'))
+      ->setRevisionable(TRUE)
+      ->setSettings([
+        'datetime_type' => 'datetime',
+      ])
+      ->setDefaultValue('')
+      ->setDisplayOptions('view', [
+        'label' => 'above',
+        'type' => 'datetime_default',
+        'settings' => [
+          'format_type' => 'medium',
+        ],
+        'weight' => 4,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'datetime_default',
+        'weight' => 4,
+      ])
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', TRUE);
 
     $fields['created'] = BaseFieldDefinition::create('created')
       ->setLabel(t('Created'))

@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Form\FormStateInterface;
 
 /**
  * Implements hook_help().
@@ -38,19 +39,97 @@ function commerce_pricelist_theme() {
     'variables' => ['content' => NULL],
     'file' => 'price_list.page.inc',
   ];
-  $theme['price_list_item'] = array(
+  $theme['price_list_item'] = [
     'render element' => 'elements',
     'file' => 'price_list_item.page.inc',
     'template' => 'price_list_item',
-  );
+  ];
   return $theme;
 }
 
 /**
-* Implements hook_theme_suggestions_HOOK().
-*/
+ * Implements hook_field_widget_form_alter().
+ *
+ * - Changes the label of the purchased_entity field to the label of the
+ *   target type (e.g. 'Product variation').
+ * - Forbids editing the purchased_entity once the order item is no longer new.
+ */
+function commerce_pricelist_field_widget_form_alter(&$element, FormStateInterface $form_state, $context) {
+  $field_definition = $context['items']->getFieldDefinition();
+  $field_name = $field_definition->getName();
+  $entity_type = $field_definition->getTargetEntityTypeId();
+  if ($field_name == 'purchased_entity' && $entity_type == 'price_list_item') {
+    if (!empty($element['target_id']['#target_type'])) {
+      $target_type = \Drupal::service('entity_type.manager')->getDefinition($element['target_id']['#target_type']);
+      $element['target_id']['#title'] = $target_type->getLabel();
+      if (!$context['items']->getEntity()->isNew()) {
+        $element['#disabled'] = TRUE;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function commerce_pricelist_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if ($form_id == 'commerce_product_variation_default_edit_form'
+    || $form_id == 'commerce_product_variation_default_add_form'
+    || $form_id == 'commerce_product_bundle_default_edit_form'
+    || $form_id == 'commerce_product_bundle_default_add_form'
+    || $form_id == 'commerce_product_default_edit_form'
+    || $form_id == 'commerce_product_default_add_form'
+  ) {
+    $form['actions']['submit']['#submit'][] = 'update_price_list_item';
+  }
+}
+
+/**
+ * Submit update price list item.
+ */
+function update_price_list_item(array $form, FormStateInterface $form_state) {
+  $entity = $form_state->getFormObject()->getEntity();
+  $entityId = $entity->id();
+  $entity_type_id = $entity->getEntityType()->id();
+  if ($entity_type_id == 'commerce_product_variation'
+    || $entity_type_id == 'commerce_product_bundle') {
+    foreach ($entity->field_price_list_item as $item) {
+      $itemEntity = $item->get('entity')->getTarget()->getValue();
+      $itemEntity->setPurchasedEntityId($entityId);
+      if (!$itemEntity->getName()) {
+        $itemEntity->setName($entity->getTitle());
+      }
+      if (!$itemEntity->getPrice()) {
+        if ($entity->getPrice()) {
+          $itemEntity->setPrice($entity->getPrice());
+        }
+      }
+      $itemEntity->save();
+    }
+  }
+  elseif ($entity_type_id == 'commerce_product') {
+    foreach ($entity->variations as $variation) {
+      $productVariation = $variation->get('entity')->getTarget()->getValue();
+      foreach ($productVariation->field_price_list_item as $item) {
+        $itemEntity = $item->get('entity')->getTarget()->getValue();
+        $itemEntity->setPurchasedEntityId($entityId);
+        if (!$itemEntity->getName() && $productVariation->getTitle()) {
+          $itemEntity->setName($productVariation->getTitle());
+        }
+        if (!$itemEntity->getPrice() && $productVariation->getPrice()) {
+          $itemEntity->setPrice($productVariation->getPrice());
+        }
+        $itemEntity->save();
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
 function commerce_pricelist_theme_suggestions_price_list(array $variables) {
-  $suggestions = array();
+  $suggestions = [];
   $entity = $variables['elements']['#price_list'];
   $sanitized_view_mode = strtr($variables['elements']['#view_mode'], '.', '_');
 

@@ -2,7 +2,7 @@
 
 namespace Drupal\commerce_pricelist\Form;
 
-use Drupal\Core\Entity\EntityForm;
+use Drupal\commerce\Form\CommerceBundleEntityFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -10,35 +10,44 @@ use Drupal\Core\Form\FormStateInterface;
  *
  * @package Drupal\commerce_pricelist\Form
  */
-class PriceListTypeForm extends EntityForm {
+class PriceListTypeForm extends CommerceBundleEntityFormBase {
+
   /**
    * {@inheritdoc}
    */
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
-
+    /** @var \Drupal\commerce_pricelist\Entity\PriceListTypeInterface $price_list_type */
     $price_list_type = $this->entity;
-    $form['label'] = array(
+    $form['label'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Label'),
       '#maxlength' => 255,
       '#default_value' => $price_list_type->label(),
       '#description' => $this->t("Label for the Price list type."),
       '#required' => TRUE,
-    );
+    ];
 
-    $form['id'] = array(
+    $form['id'] = [
       '#type' => 'machine_name',
       '#default_value' => $price_list_type->id(),
-      '#machine_name' => array(
+      '#machine_name' => [
         'exists' => '\Drupal\commerce_pricelist\Entity\PriceListType::load',
-      ),
+      ],
       '#disabled' => !$price_list_type->isNew(),
-    );
+    ];
+
+    $form['description'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Description'),
+      '#default_value' => $price_list_type->getDescription(),
+    ];
+
+    $form = $this->buildTraitForm($form, $form_state);
 
     /* You will need additional form elements for your custom properties. */
 
-    return $form;
+    return $this->protectBundleIdElement($form);
   }
 
   /**
