@@ -35,7 +35,7 @@ use Drupal\user\UserInterface;
  *     },
  *   },
  *   base_table = "price_list",
- *   admin_permission = "administer price list entities",
+ *   admin_permission = "administer price_list",
  *   entity_keys = {
  *     "id" = "id",
  *     "bundle" = "type",
