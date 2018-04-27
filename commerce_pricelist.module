@@ -93,33 +93,41 @@ function update_price_list_item(array $form, FormStateInterface $form_state) {
   $entity_type_id = $entity->getEntityType()->id();
   if ($entity_type_id == 'commerce_product_variation'
     || $entity_type_id == 'commerce_product_bundle') {
+    // This will be change: https://www.drupal.org/node/2965920.
     foreach ($entity->field_price_list_item as $item) {
-      $itemEntity = $item->get('entity')->getTarget()->getValue();
-      $itemEntity->setPurchasedEntityId($entityId);
-      if (!$itemEntity->getName()) {
-        $itemEntity->setName($entity->getTitle());
-      }
-      if (!$itemEntity->getPrice()) {
-        if ($entity->getPrice()) {
-          $itemEntity->setPrice($entity->getPrice());
+      $entityAdaper = $item->get('entity')->getTarget();
+      if ($entityAdaper){
+        $itemEntity = $entityAdaper->getValue();
+        $itemEntity->setPurchasedEntityId($entityId);
+        if (!$itemEntity->getName()) {
+          $itemEntity->setName($entity->getTitle());
         }
+        if (!$itemEntity->getPrice()) {
+          if ($entity->getPrice()) {
+            $itemEntity->setPrice($entity->getPrice());
+          }
+        }
+        $itemEntity->save();
       }
-      $itemEntity->save();
     }
   }
   elseif ($entity_type_id == 'commerce_product') {
     foreach ($entity->variations as $variation) {
       $productVariation = $variation->get('entity')->getTarget()->getValue();
+      // This will be change: https://www.drupal.org/node/2965920.
       foreach ($productVariation->field_price_list_item as $item) {
-        $itemEntity = $item->get('entity')->getTarget()->getValue();
-        $itemEntity->setPurchasedEntityId($entityId);
-        if (!$itemEntity->getName() && $productVariation->getTitle()) {
-          $itemEntity->setName($productVariation->getTitle());
+        $entityAdaper = $item->get('entity')->getTarget();
+        if ($entityAdaper){
+          $itemEntity = $entityAdaper->getValue();
+          $itemEntity->setPurchasedEntityId($entityId);
+          if (!$itemEntity->getName() && $productVariation->getTitle()) {
+            $itemEntity->setName($productVariation->getTitle());
+          }
+          if (!$itemEntity->getPrice() && $productVariation->getPrice()) {
+            $itemEntity->setPrice($productVariation->getPrice());
+          }
+          $itemEntity->save();
         }
-        if (!$itemEntity->getPrice() && $productVariation->getPrice()) {
-          $itemEntity->setPrice($productVariation->getPrice());
-        }
-        $itemEntity->save();
       }
     }
   }
