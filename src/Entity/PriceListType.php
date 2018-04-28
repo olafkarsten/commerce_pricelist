@@ -39,6 +39,7 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
  * )
  */
 class PriceListType extends CommerceBundleEntityBase implements PriceListTypeInterface {
+
   /**
    * A brief description of this store type.
    *
