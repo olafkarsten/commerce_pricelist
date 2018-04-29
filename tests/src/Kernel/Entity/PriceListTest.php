@@ -111,7 +111,7 @@ class PriceListTest extends PriceListKernelTestBase {
     $priceList->save();
     $this->assertEquals('test', $priceList->bundle());
 
-    // Note this are intentional failing tests until #2966977 is solved
+    // Note this are intentional failing tests until #2966977 is solved.
     // @see https://www.drupal.org/project/commerce_pricelist/issues/2966977
     // Confirm the attached price list item field is there.
     $this->assertTrue($priceList->hasField('field_price_list_item'));

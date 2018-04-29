@@ -21,7 +21,7 @@ abstract class PriceListKernelTestBase extends CommerceKernelTestBase {
    */
   public static $modules = [
     'commerce_pricelist',
-    'commerce_product'
+    'commerce_product',
   ];
 
   /**
