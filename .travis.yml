@@ -126,7 +126,7 @@ script:
   - phpcs --standard=phpcs.xml src -s
   - phpcs --standard=phpcs.xml modules -s
   - phpcs --standard=phpcs.xml tests -s
-  - phpcs --standard=phpcs.xml commerce_price_list.module
+  - phpcs --standard=phpcs.xml commerceprice_list.module
 
   - drupal-ti script
   #- drupal-ti --include ".travis-simpletest-js.sh"
