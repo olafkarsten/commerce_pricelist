@@ -55,6 +55,7 @@ use Drupal\user\UserInterface;
  *     "label" = "name",
  *     "uuid" = "uuid",
  *     "published" = "status",
+ *     "langcode" = "langcode",
  *   },
  *   links = {
  *     "canonical" = "/admin/commerce/config/price_list_item/{price_list_item}",
