@@ -50,6 +50,7 @@ use Drupal\user\UserInterface;
  *     "label" = "name",
  *     "uuid" = "uuid",
  *     "published" = "status",
+ *     "langcode" = "langcode",
  *   },
  *   bundle_entity_type = "price_list_item_type",
  *   field_ui_base_route = "entity.price_list_item_type.edit_form"
