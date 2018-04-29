@@ -71,6 +71,13 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
   /**
    * {@inheritdoc}
    */
+  public function setPriceList(PriceListInterface $price_list) {
+    return $this->set('price_list_id', $price_list);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getPriceListId() {
     return $this->get('price_list_id')->target_id;
   }
@@ -80,13 +87,6 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
    */
   public function setPriceListId($price_list_id) {
     return $this->set('price_list_id', $price_list_id);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function setPriceList(PriceListInterface $price_list) {
-    return $this->set('price_list_id', $price_list);
   }
 
   /**
