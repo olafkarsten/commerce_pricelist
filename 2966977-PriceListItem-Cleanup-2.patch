@@ -1,0 +1,544 @@
+diff --git a/src/Entity/PriceListItem.php b/src/Entity/PriceListItem.php
+index d63daa6..991b2fe 100644
+--- a/src/Entity/PriceListItem.php
++++ b/src/Entity/PriceListItem.php
+@@ -4,19 +4,28 @@ namespace Drupal\commerce_pricelist\Entity;
+ 
+ use Drupal\commerce_price\Price;
+ use Drupal\commerce\Entity\CommerceContentEntityBase;
+-use Drupal\Core\Entity\EntityStorageInterface;
++use Drupal\Core\Datetime\DrupalDateTime;
++use Drupal\Core\Entity\EntityPublishedTrait;
+ use Drupal\Core\Field\BaseFieldDefinition;
+ use Drupal\Core\Entity\EntityChangedTrait;
+ use Drupal\Core\Entity\EntityTypeInterface;
++use Drupal\user\UserInterface;
+ 
+ /**
+- * Defines the Price list item entity.
++ * Defines the price list item entity.
+  *
+  * @ingroup commerce_pricelist
+  *
+  * @ContentEntityType(
+  *   id = "price_list_item",
+  *   label = @Translation("Price list item"),
++ *   label_collection = @Translation("Price list items"),
++ *   label_singular = @Translation("price list item"),
++ *   label_plural = @Translation("price list items"),
++ *   label_count = @PluralTranslation(
++ *     singular = "@count price list item",
++ *     plural = "@count price list items",
++ *   ),
+  *   bundle_label = @Translation("price list item type"),
+  *   handlers = {
+  *     "view_builder" = "Drupal\Core\Entity\EntityViewBuilder",
+@@ -36,6 +45,8 @@ use Drupal\Core\Entity\EntityTypeInterface;
+  *       "html" = "Drupal\commerce_pricelist\PriceListItemHtmlRouteProvider",
+  *     },
+  *   },
++ *   translatable = TRUE,
++ *   content_translation_ui_skip = TRUE,
+  *   base_table = "price_list_item",
+  *   admin_permission = "administer price list item entities",
+  *   entity_keys = {
+@@ -43,6 +54,8 @@ use Drupal\Core\Entity\EntityTypeInterface;
+  *     "bundle" = "type",
+  *     "label" = "name",
+  *     "uuid" = "uuid",
++ *     "published" = "status",
++ *     "langcode" = "langcode",
+  *   },
+  *   links = {
+  *     "canonical" = "/admin/commerce/config/price_list_item/{price_list_item}",
+@@ -56,23 +69,22 @@ use Drupal\Core\Entity\EntityTypeInterface;
+  * )
+  */
+ class PriceListItem extends CommerceContentEntityBase implements PriceListItemInterface {
++
+   use EntityChangedTrait;
++  use EntityPublishedTrait;
+ 
+   /**
+    * {@inheritdoc}
+    */
+-  public static function preCreate(EntityStorageInterface $storage_controller, array &$values) {
+-    parent::preCreate($storage_controller, $values);
+-    $values += [
+-      'user_id' => \Drupal::currentUser()->id(),
+-    ];
++  public function getPriceList() {
++    return $this->get('price_list_id')->entity;
+   }
+ 
+   /**
+    * {@inheritdoc}
+    */
+-  public function getPriceList() {
+-    return $this->get('price_list_id')->entity;
++  public function setPriceList(PriceListInterface $price_list) {
++    return $this->set('price_list_id', $price_list);
+   }
+ 
+   /**
+@@ -85,8 +97,8 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+   /**
+    * {@inheritdoc}
+    */
+-  public function setPriceListId($target_id) {
+-    return $this->set('price_list_id', $target_id);
++  public function setPriceListId($price_list_id) {
++    return $this->set('price_list_id', $price_list_id);
+   }
+ 
+   /**
+@@ -114,8 +126,8 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+   /**
+    * {@inheritdoc}
+    */
+-  public function setQuantity($name) {
+-    $this->set('quantity', $name);
++  public function setQuantity($quantity) {
++    $this->set('quantity', $quantity);
+     return $this;
+   }
+ 
+@@ -189,30 +201,89 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+   /**
+    * {@inheritdoc}
+    */
+-  public function setPurchasedEntityId($target_id) {
+-    return $this->set('purchased_entity', $target_id);
++  public function setPurchasedEntityId($purchased_entity_id) {
++    return $this->set('purchased_entity', $purchased_entity_id);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function getStartDate() {
++    // Can't use the ->date property because it resets the timezone to UTC.
++    return new DrupalDateTime($this->get('start_date')->value);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function setStartDate(DrupalDateTime $start_date) {
++    $this->get('start_date')->value = $start_date->format('Y-m-d');
++    return $this;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function getEndDate() {
++    if (!$this->get('end_date')->isEmpty()) {
++      return new DrupalDateTime($this->get('end_date')->value);
++    }
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function setEndDate(DrupalDateTime $end_date = NULL) {
++    $this->get('end_date')->value = $end_date ? $end_date->format('Y-m-d') : NULL;
++    return $this;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function getOwner() {
++    return $this->get('uid')->entity;
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function setOwner(UserInterface $account) {
++    $this->set('uid', $account->id());
++    return $this;
+   }
+ 
+   /**
+    * {@inheritdoc}
+    */
+-  public function isPublished() {
+-    return (bool) $this->getEntityKey('status');
++  public function getOwnerId() {
++    return $this->get('uid')->target_id;
+   }
+ 
+   /**
+    * {@inheritdoc}
+    */
+-  public function setPublished($published) {
+-    $this->set('status', $published ? NODE_PUBLISHED : NODE_NOT_PUBLISHED);
++  public function setOwnerId($uid) {
++    $this->set('uid', $uid);
+     return $this;
+   }
+ 
+   /**
+    * {@inheritdoc}
+    */
+-  public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
++  public static function baseFieldDefinitions(EntityTypeInterface $entity_type
++  ) {
+     $fields = parent::baseFieldDefinitions($entity_type);
++    $fields += static::publishedBaseFieldDefinitions($entity_type);
++
++    $fields['uid'] = BaseFieldDefinition::create('entity_reference')
++      ->setLabel(t('Author'))
++      ->setDescription(t('The price list item author.'))
++      ->setSetting('target_type', 'user')
++      ->setSetting('handler', 'default')
++      ->setDefaultValueCallback('Drupal\commerce_pricelist\Entity\PriceListItem::getCurrentUserId')
++      ->setTranslatable(TRUE)
++      ->setDisplayConfigurable('form', TRUE);
+ 
+     $fields['weight'] = BaseFieldDefinition::create('integer')
+       ->setLabel(t('Weight'))
+@@ -238,7 +309,7 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+ 
+     $fields['purchased_entity'] = BaseFieldDefinition::create('entity_reference')
+       ->setLabel(t('Purchased entity'))
+-      ->setDescription(t('The Product of the Price list item entity.'))
++      ->setDescription(t('The purchased entity of the price list item.'))
+       ->setRequired(TRUE)
+       ->setDisplayOptions('form', [
+         'type' => 'entity_reference_autocomplete',
+@@ -269,6 +340,7 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+         'type' => 'string_textfield',
+         'weight' => 2,
+       ])
++      ->setTranslatable(TRUE)
+       ->setDisplayConfigurable('form', TRUE)
+       ->setDisplayConfigurable('view', TRUE);
+ 
+@@ -355,11 +427,19 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+ 
+     $fields['created'] = BaseFieldDefinition::create('created')
+       ->setLabel(t('Created'))
+-      ->setDescription(t('The time that the entity was created.'));
++      ->setDescription(t('The time when the price list item was created.'))
++      ->setTranslatable(TRUE)
++      ->setDisplayOptions('form', [
++        'type' => 'datetime_timestamp',
++        'weight' => 10,
++      ])
++      ->setDisplayConfigurable('form', TRUE)
++      ->setDisplayConfigurable('view', TRUE);
+ 
+     $fields['changed'] = BaseFieldDefinition::create('changed')
+       ->setLabel(t('Changed'))
+-      ->setDescription(t('The time that the entity was last edited.'));
++      ->setDescription(t('The time that the entity was last edited.'))
++      ->setTranslatable(TRUE);
+ 
+     return $fields;
+   }
+@@ -367,7 +447,11 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+   /**
+    * {@inheritdoc}
+    */
+-  public static function bundleFieldDefinitions(EntityTypeInterface $entity_type, $bundle, array $base_field_definitions) {
++  public static function bundleFieldDefinitions(
++    EntityTypeInterface $entity_type,
++    $bundle,
++    array $base_field_definitions
++  ) {
+     /** @var \Drupal\commerce_pricelist\Entity\PriceListItemTypeInterface $price_list_item_type */
+     $price_list_item_type = PriceListItemType::load($bundle);
+     $purchasable_entity_type = $price_list_item_type->getPurchasableEntityTypeId();
+@@ -377,7 +461,7 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+       $fields['purchased_entity']->setSetting('target_type', $purchasable_entity_type);
+     }
+     else {
+-      // This order item type won't reference a purchasable entity. The field
++      // This price list item type won't reference a purchasable entity. The field
+       // can't be removed here, or converted to a configurable one, so it's
+       // hidden instead. https://www.drupal.org/node/2346347#comment-10254087.
+       $fields['purchased_entity']->setRequired(FALSE);
+@@ -392,4 +476,16 @@ class PriceListItem extends CommerceContentEntityBase implements PriceListItemIn
+     return $fields;
+   }
+ 
++  /**
++   * Default value callback for 'uid' base field definition.
++   *
++   * @see ::baseFieldDefinitions()
++   *
++   * @return array
++   *   An array of default values.
++   */
++  public static function getCurrentUserId() {
++    return [\Drupal::currentUser()->id()];
++  }
++
+ }
+diff --git a/src/Entity/PriceListItemInterface.php b/src/Entity/PriceListItemInterface.php
+index c17c696..3ef1be4 100644
+--- a/src/Entity/PriceListItemInterface.php
++++ b/src/Entity/PriceListItemInterface.php
+@@ -3,123 +3,129 @@
+ namespace Drupal\commerce_pricelist\Entity;
+ 
+ use Drupal\commerce_price\Price;
++use Drupal\Core\Datetime\DrupalDateTime;
+ use Drupal\Core\Entity\ContentEntityInterface;
+ use Drupal\Core\Entity\EntityChangedInterface;
++use Drupal\Core\Entity\EntityPublishedInterface;
++use Drupal\user\EntityOwnerInterface;
+ 
+ /**
+- * Provides an interface for defining Price list item entities.
++ * Defines the interface for price list items.
+  *
+  * @ingroup commerce_pricelist
+  */
+-interface PriceListItemInterface extends ContentEntityInterface, EntityChangedInterface {
+-  // Add get/set methods for your configuration properties here.
++interface PriceListItemInterface extends
++    ContentEntityInterface,
++    EntityChangedInterface,
++    EntityPublishedInterface,
++    EntityOwnerInterface {
++
+   /**
+-   * Gets the Price list item name.
++   * Gets the price list item name.
+    *
+    * @return string
+-   *   Name of the Price list item.
++   *   Name of the price list item.
+    */
+   public function getName();
+ 
+   /**
+-   * Sets the Price list item name.
++   * Sets the price list item name.
+    *
+    * @param string $name
+-   *   The Price list item name.
++   *   The price list item name.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return $this
+    */
+   public function setName($name);
+ 
+   /**
+-   * Gets the Price list item quantity.
++   * Gets the price list item quantity.
+    *
+    * @return string
+-   *   Quantity of the Price list item.
++   *   Quantity of the price list item.
+    */
+   public function getQuantity();
+ 
+   /**
+-   * Sets the Price list item quantity.
++   * Sets the price list item quantity.
+    *
+    * @param string $quantity
+-   *   The Price list item quantity.
++   *   The price list item quantity.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return $this
+    */
+   public function setQuantity($quantity);
+ 
+   /**
+-   * Gets the Price list item creation timestamp.
++   * Gets the price list item creation timestamp.
+    *
+    * @return int
+-   *   Creation timestamp of the Price list item.
++   *   Creation timestamp of the price list item.
+    */
+   public function getCreatedTime();
+ 
+   /**
+-   * Sets the Price list item creation timestamp.
++   * Sets the price list item creation timestamp.
+    *
+    * @param int $timestamp
+-   *   The Price list item creation timestamp.
++   *   The price list item creation timestamp.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   *   * @return $this.
+    */
+   public function setCreatedTime($timestamp);
+ 
+   /**
+-   * Returns the Price list item published status indicator.
+-   *
+-   * Unpublished Price list item are only visible to restricted users.
++   * Gets the price list item weight.
+    *
+-   * @return bool
+-   *   TRUE if the Price list item is published.
++   * @return int
++   *   Weight of the price list item.
+    */
+-  public function isPublished();
++  public function getWeight();
+ 
+   /**
+-   * Sets the published status of a Price list item.
++   * Sets the price list item weight.
+    *
+-   * @param bool $published
+-   *   TRUE to set this Price list item to published, FALSE to set it to unpublished.
++   * @param int $weight
++   *   The price list item weight.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   *   * @return $this.
+    */
+-  public function setPublished($published);
++  public function setWeight($weight);
+ 
+   /**
+-   * Gets the Price list item weight.
++   * Sets the parent price list ID.
+    *
+-   * @return string
+-   *   Weight of the Price list item.
++   * @param string $price_list_id
++   *   The parent price list ID.
++   *
++   * @return $this
+    */
+-  public function getWeight();
++  public function setPriceListId($price_list_id);
+ 
+   /**
+-   * Sets the Price list item weight.
++   * Sets the parent price list.
+    *
+-   * @param string $weight
+-   *   The Price list item weight.
++   * @param \Drupal\commerce_pricelist\Entity\PriceListInterface $price_list
++   *   The price list entity.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return $this
+    */
+-  public function setWeight($weight);
++  public function setPriceList(PriceListInterface $price_list);
+ 
+   /**
+-   * Sets the Price list item price_list_id.
++   * Gets the price list.
+    *
+-   * @param string $priceListId
+-   *   The Price list item price_list_id.
++   * @return $this
++   */
++  public function getPriceList();
++
++  /**
++   * Gets the price list ID.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return int
++   *   The parent price list entity ID.
+    */
+-  public function setPriceListId($priceListId);
++  public function getPriceListId();
+ 
+   /**
+    * Gets whether the price list item has a purchased entity.
+@@ -146,33 +152,67 @@ interface PriceListItemInterface extends ContentEntityInterface, EntityChangedIn
+   public function getPurchasedEntityId();
+ 
+   /**
+-   * Sets the Price list item purchased entity.
++   * Sets the price list item purchased entity ID.
+    *
+-   * @param string $target_id
+-   *   The Price list item purchased_entity_id.
++   * @param string $purchased_entity_id
++   *   The purchased entity ID.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return $this
+    */
+-  public function setPurchasedEntityId($target_id);
++  public function setPurchasedEntityId($purchased_entity_id);
+ 
+   /**
+-   * Gets the Price list item price.
++   * Gets the price list item price.
+    *
+-   * @return string
+-   *   Price of the Price list item.
++   * @return \Drupal\commerce_price\Price
++   *   The price.
+    */
+   public function getPrice();
+ 
+   /**
+-   * Sets the Price list item price.
++   * Sets the price list item price.
+    *
+    * @param \Drupal\commerce_price\Price $price
+-   *   The Price list item Price.
++   *   The price.
+    *
+-   * @return \Drupal\commerce_pricelist\Entity\PriceListItemInterface
+-   *   The called Price list item entity.
++   * @return $this
+    */
+   public function setPrice(Price $price);
+ 
++  /**
++   * Gets the price list item start date.
++   *
++   * @return \Drupal\Core\Datetime\DrupalDateTime
++   *   The price list item start date.
++   */
++  public function getStartDate();
++
++  /**
++   * Sets the price list item start date.
++   *
++   * @param \Drupal\Core\Datetime\DrupalDateTime $start_date
++   *   The price list item start date.
++   *
++   * @return $this
++   */
++  public function setStartDate(DrupalDateTime $start_date);
++
++  /**
++   * Gets the price list item end date.
++   *
++   * @return \Drupal\Core\Datetime\DrupalDateTime
++   *   The price list item end date.
++   */
++  public function getEndDate();
++
++  /**
++   * Sets the price list item end date.
++   *
++   * @param \Drupal\Core\Datetime\DrupalDateTime $end_date
++   *   The price list item end date.
++   *
++   * @return $this
++   */
++  public function setEndDate(DrupalDateTime $end_date = NULL);
++
+ }

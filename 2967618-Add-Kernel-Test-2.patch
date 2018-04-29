@@ -1,0 +1,598 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..86e02bc
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,5 @@
++.DS_Store
++._*
++*~
++*.kpf
++.idea
+diff --git a/.travis-before-script.sh b/.travis-before-script.sh
+new file mode 100755
+index 0000000..2097a2e
+--- /dev/null
++++ b/.travis-before-script.sh
+@@ -0,0 +1,10 @@
++#!/bin/bash
++
++set -e $DRUPAL_TI_DEBUG
++
++# Ensure the right Drupal version is installed.
++# Note: This function is re-entrant.
++drupal_ti_ensure_drupal
++
++# Turn on PhantomJS for functional Javascript tests
++phantomjs --ssl-protocol=any --ignore-ssl-errors=true $DRUPAL_TI_DRUPAL_DIR/vendor/jcalderonzumba/gastonjs/src/Client/main.js 8510 1024 768 2>&1 >> /dev/null &
+diff --git a/.travis-simpletest-js.sh b/.travis-simpletest-js.sh
+new file mode 100755
+index 0000000..585ee6f
+--- /dev/null
++++ b/.travis-simpletest-js.sh
+@@ -0,0 +1,19 @@
++#!/bin/bash
++# @file
++# Simple script to run the tests via travis-ci.
++
++set -e $DRUPAL_TI_DEBUG
++
++export ARGS=( $DRUPAL_TI_SIMPLETEST_JS_ARGS )
++
++if [ -n "$DRUPAL_TI_SIMPLETEST_GROUP" ]
++then
++        ARGS=( "${ARGS[@]}" "$DRUPAL_TI_SIMPLETEST_GROUP" )
++fi
++
++
++cd "$DRUPAL_TI_DRUPAL_DIR"
++{ php "$DRUPAL_TI_SIMPLETEST_FILE" --php $(which php) "${ARGS[@]}" || echo "1 fails"; } | tee /tmp/simpletest-result.txt
++
++egrep -i "([1-9]+ fail[s]?)|(Fatal error)|([1-9]+ exception[s]?)" /tmp/simpletest-result.txt && exit 1
++exit 0
+diff --git a/.travis.yml b/.travis.yml
+new file mode 100644
+index 0000000..a27e1dc
+--- /dev/null
++++ b/.travis.yml
+@@ -0,0 +1,137 @@
++# @file
++# .travis.yml - Drupal for Travis CI Integration
++#
++# Template provided by https://github.com/LionsAd/drupal_ti.
++#
++# Based for simpletest upon:
++#   https://github.com/sonnym/travis-ci-drupal-module-example
++
++language: php
++
++sudo: false
++
++dist: precise
++
++php:
++  - 7.1
++  - 7.0
++
++branches:
++  except:
++    - "7.x-1.x"
++
++matrix:
++  fast_finish: true
++
++env:
++  global:
++    - PHANTOMJS2_VERSION="2.0.0"
++    # add composer's global bin directory to the path
++    # see: https://github.com/drush-ops/drush#install---composer
++    - PATH="$PATH:$HOME/.composer/vendor/bin"
++
++    # Configuration variables.
++    - DRUPAL_TI_MODULE_NAME="commerce_pricelist"
++    - DRUPAL_TI_SIMPLETEST_GROUP="commerce_pricelist"
++
++    # Define runners and environment vars to include before and after the
++    # main runners / environment vars.
++    #- DRUPAL_TI_SCRIPT_DIR_BEFORE="./drupal_ti/before"
++    #- DRUPAL_TI_SCRIPT_DIR_AFTER="./drupal_ti/after"
++
++    # The environment to use, supported are: drupal-7, drupal-8
++    - DRUPAL_TI_ENVIRONMENT="drupal-8"
++    - DRUPAL_TI_CORE_BRANCH="8.5.x"
++
++    # Drupal specific variables.
++    - DRUPAL_TI_DB="drupal_travis_db"
++    - DRUPAL_TI_DB_URL="mysql://root:@127.0.0.1/drupal_travis_db"
++    # Note: Do not add a trailing slash here.
++    - DRUPAL_TI_WEBSERVER_URL="http://127.0.0.1"
++    - DRUPAL_TI_WEBSERVER_PORT="8080"
++
++    # Simpletest specific commandline arguments, the DRUPAL_TI_SIMPLETEST_GROUP is appended at the end.
++    - DRUPAL_TI_SIMPLETEST_ARGS="--verbose --color --concurrency 20 --url $DRUPAL_TI_WEBSERVER_URL:$DRUPAL_TI_WEBSERVER_PORT --types Simpletest,PHPUnit-Unit,PHPUnit-Kernel,PHPUnit-Functional --suppress-deprecations"
++    - DRUPAL_TI_SIMPLETEST_JS_ARGS="--verbose --color --concurrency 1 --url $DRUPAL_TI_WEBSERVER_URL:$DRUPAL_TI_WEBSERVER_PORT --types PHPUnit-FunctionalJavascript --suppress-deprecations"
++
++    # === Behat specific variables.
++    # This is relative to $TRAVIS_BUILD_DIR
++    - DRUPAL_TI_BEHAT_DIR="./tests/behat"
++    # These arguments are passed to the bin/behat command.
++    - DRUPAL_TI_BEHAT_ARGS=""
++    # Specify the filename of the behat.yml with the $DRUPAL_TI_DRUPAL_DIR variables.
++    - DRUPAL_TI_BEHAT_YML="behat.yml.dist"
++    # This is used to setup Xvfb.
++    - DRUPAL_TI_BEHAT_SCREENSIZE_COLOR="1280x1024x16"
++    # The version of selenium that should be used.
++    - DRUPAL_TI_BEHAT_SELENIUM_VERSION="2.44"
++    # Set DRUPAL_TI_BEHAT_DRIVER to "selenium" to use "firefox" or "chrome" here.
++    - DRUPAL_TI_BEHAT_DRIVER="phantomjs"
++    - DRUPAL_TI_BEHAT_BROWSER="firefox"
++
++    # PHPUnit specific commandline arguments.
++    - DRUPAL_TI_PHPUNIT_ARGS=""
++    # Specifying the phpunit-core src/ directory is useful when e.g. a vendor/
++    # directory is present in the module directory, which phpunit would then
++    # try to find tests in. This option is relative to $TRAVIS_BUILD_DIR.
++    #- DRUPAL_TI_PHPUNIT_CORE_SRC_DIRECTORY="./tests/src"
++
++    # Code coverage via coveralls.io
++    - DRUPAL_TI_COVERAGE="satooshi/php-coveralls:0.6.*"
++    # This needs to match your .coveralls.yml file.
++    - DRUPAL_TI_COVERAGE_FILE="build/logs/clover.xml"
++
++    # Debug options
++    #- DRUPAL_TI_DEBUG="-x -v"
++    # Set to "all" to output all files, set to e.g. "xvfb selenium" or "selenium",
++    # etc. to only output those channels.
++    #- DRUPAL_TI_DEBUG_FILE_OUTPUT="selenium xvfb webserver"
++
++  matrix:
++    # [[[ SELECT ANY OR MORE OPTIONS ]]]
++    #- DRUPAL_TI_RUNNERS="phpunit"
++    - DRUPAL_TI_RUNNERS="simpletest"
++    #- DRUPAL_TI_RUNNERS="behat"
++    #- DRUPAL_TI_RUNNERS="phpunit simpletest behat"
++
++mysql:
++  database: drupal_travis_db
++  username: root
++  encoding: utf8
++
++before_install:
++  # Remove xdebug. We aren't generating code coverage, and it slows down Composer.
++  - phpenv config-rm xdebug.ini || true
++  - composer global require "hirak/prestissimo:^0.3"
++  - composer global require "lionsad/drupal_ti:dev-master#396d11d200005eb68491d24170da0a98ae7f51b3"
++  - composer global require "squizlabs/php_codesniffer:2.*"
++  - drupal-ti before_install
++
++install:
++  - drupal-ti install
++  - mkdir travis-phantomjs
++  - wget https://s3.amazonaws.com/travis-phantomjs/phantomjs-2.0.0-ubuntu-12.04.tar.bz2 -O $PWD/travis-phantomjs/phantomjs-2.0.0-ubuntu-12.04.tar.bz2
++  - tar -xvf $PWD/travis-phantomjs/phantomjs-2.0.0-ubuntu-12.04.tar.bz2 -C $PWD/travis-phantomjs
++  - export PATH=$PWD/travis-phantomjs:$PATH
++  - phantomjs --version
++  # Installed after Drush to prevent Composer conflicts around symfony/yaml.
++  - composer global require "drupal/coder:8.2.*"
++  - phpcs --config-set installed_paths $HOME/.composer/vendor/drupal/coder/coder_sniffer
++
++before_script:
++  - drupal-ti --include ".travis-before-script.sh"
++  - drupal-ti before_script
++
++script:
++  - phpcs --standard=phpcs.xml src -s
++  - phpcs --standard=phpcs.xml modules -s
++  - phpcs --standard=phpcs.xml tests -s
++
++  - drupal-ti script
++  #- drupal-ti --include ".travis-simpletest-js.sh"
++
++after_script:
++  - drupal-ti after_script
++
++notifications:
++  email: false
+diff --git a/commerce_pricelist.info.yml b/commerce_pricelist.info.yml
+index c2b8aeb..85c92db 100644
+--- a/commerce_pricelist.info.yml
++++ b/commerce_pricelist.info.yml
+@@ -4,7 +4,7 @@ description: Set product prices through price lists
+ core: 8.x
+ package: Commerce (contrib)
+ dependencies:
+-  - commerce
+-  - commerce_store
+-  - commerce_price
+-  - commerce_product
++  - commerce:commerce
++  - commerce:commerce_store
++  - commerce:commerce_price
++  - commerce:commerce_product
+diff --git a/composer.json b/composer.json
+index 4f618d2..ea095e0 100644
+--- a/composer.json
++++ b/composer.json
+@@ -10,5 +10,7 @@
+     "issues": "http://drupal.org/project/issues/commerce_pricelist",
+     "source": "http://cgit.drupalcode.org/commerce_pricelist"
+   },
+-  "require": { }
++  "require": {
++    "drupal/commerce": "~2.0"
++  }
+ }
+diff --git a/config/schema/price_list.schema.yml b/config/schema/price_list.schema.yml
+new file mode 100644
+index 0000000..258f7b1
+--- /dev/null
++++ b/config/schema/price_list.schema.yml
+@@ -0,0 +1,23 @@
++commerce_pricelist.price_list_type.*:
++  type: config_entity
++  label: 'Price list type config'
++  mapping:
++    id:
++      type: string
++      label: 'ID'
++    label:
++      type: label
++      label: 'Label'
++    uuid:
++      type: string
++
++commerce_pricelist.price_list_item_type.*:
++  type: commerce_config_entity_bundle
++  label: 'Price list item type config'
++  mapping:
++    purchasableEntityType:
++      type: string
++      label: 'Purchasable entity type ID.'
++    priceListType:
++      type: string
++      label: 'Pricelist entity type ID.'
+diff --git a/config/schema/price_list_type.schema.yml b/config/schema/price_list_type.schema.yml
+deleted file mode 100644
+index cff7ccf..0000000
+--- a/config/schema/price_list_type.schema.yml
++++ /dev/null
+@@ -1,12 +0,0 @@
+-commerce_pricelist.price_list_type.*:
+-  type: config_entity
+-  label: 'Price list type config'
+-  mapping:
+-    id:
+-      type: string
+-      label: 'ID'
+-    label:
+-      type: label
+-      label: 'Label'
+-    uuid:
+-      type: string
+diff --git a/src/Entity/PriceListType.php b/src/Entity/PriceListType.php
+index 29ff5da..8f84f97 100644
+--- a/src/Entity/PriceListType.php
++++ b/src/Entity/PriceListType.php
+@@ -39,6 +39,7 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
+  * )
+  */
+ class PriceListType extends CommerceBundleEntityBase implements PriceListTypeInterface {
++
+   /**
+    * A brief description of this store type.
+    *
+diff --git a/tests/src/Kernel/Entity/PriceListItemTest.php b/tests/src/Kernel/Entity/PriceListItemTest.php
+new file mode 100644
+index 0000000..55a5466
+--- /dev/null
++++ b/tests/src/Kernel/Entity/PriceListItemTest.php
+@@ -0,0 +1,122 @@
++<?php
++
++namespace Drupal\Tests\commerce_pricelist\Kernel\Entity;
++
++use Drupal\commerce_price\Price;
++use Drupal\commerce_pricelist\Entity\PriceListItem;
++use Drupal\commerce_pricelist\Entity\PriceList;
++use Drupal\commerce_product\Entity\ProductVariation;
++use Drupal\Core\Datetime\DrupalDateTime;
++use Drupal\Tests\commerce_pricelist\Kernel\PriceListKernelTestBase;
++
++/**
++ * Tests the PriceListItem entity.
++ *
++ * @coversDefaultClass \Drupal\commerce_pricelist\Entity\PriceListItem
++ *
++ * @group commerce_pricelist
++ */
++class PriceListItemTest extends PriceListKernelTestBase {
++
++  /**
++   * A sample user.
++   *
++   * @var \Drupal\user\UserInterface
++   */
++  protected $user;
++
++  /**
++   * {@inheritdoc}
++   */
++  protected function setUp() {
++    parent::setUp();
++
++    $user = $this->createUser();
++    $this->user = $this->reloadEntity($user);
++  }
++
++  /**
++   * @covers ::setPriceListId
++   * @covers ::getPriceListId
++   * @covers ::getPriceList
++   * @covers ::setName
++   * @covers ::getName
++   * @covers ::setWeight
++   * @covers ::getWeight
++   * @covers ::setQuantity
++   * @covers ::getQuantity
++   * @covers ::setCreatedTime
++   * @covers ::getCreatedTime
++   * @covers ::setPrice
++   * @covers ::getPrice
++   * @covers ::setPublished
++   * @covers ::isPublished
++   * @covers ::setPurchasedEntityId
++   * @covers ::getPurchasedEntity
++   * @covers ::getPurchasedEntityId
++   */
++  public function testPriceListItem() {
++    $priceListItem = PriceListItem::create(
++      [
++        'type' => 'default',
++      ]
++    );
++    $priceListItem->save();
++
++    $priceList = PriceList::create(
++      [
++        'type' => 'default',
++      ]
++    );
++    $priceList->save();
++
++    /** @var \Drupal\commerce_pricelist\Entity\PriceListInterface $priceList */
++    $priceList = $this->reloadEntity($priceList);
++    /** @var \Drupal\commerce_pricelist\Entity\PriceListItemInterface $priceListItem */
++    $priceListItem = $this->reloadEntity($priceListItem);
++
++    $priceListItem->setPriceListId($priceList->id());
++    $this->assertEquals($priceListItem->getPriceListId(), $priceListItem->id());
++    $this->assertTrue($priceListItem->getPriceList() === $priceList);
++
++    $priceListItem->setName('My TestPriceListItem');
++    $this->assertEquals('My TestPriceListItem', $priceListItem->getName());
++
++    $priceListItem->setWeight(99);
++    $this->assertEquals(99, $priceListItem->getWeight());
++
++    $priceListItem->setQuantity(88);
++    $this->assertEquals(88, $priceListItem->getQuantity());
++
++    $priceListItem->setCreatedTime(635666677);
++    $this->assertEquals(635666677, $priceListItem->getCreatedTime());
++
++    $price = new Price('9.99', 'USD');
++    $priceListItem->setPrice($price);
++    $this->assertEquals($price, $priceListItem->getPrice());
++
++    $priceListItem->setPublished(TRUE);
++    $this->assertTrue($priceListItem->isPublished());
++
++    $priceListItem->setOwner($this->user);
++    $this->assertEquals($this->user, $priceListItem->getOwner());
++    $this->assertEquals($this->user->id(), $priceListItem->getOwnerId());
++    $priceListItem->setOwnerId(0);
++    $this->assertEquals(NULL, $priceListItem->getOwner());
++    $priceListItem->setOwnerId($this->user->id());
++    $this->assertEquals($this->user, $priceListItem->getOwner());
++    $this->assertEquals($this->user->id(), $priceListItem->getOwnerId());
++
++    $variation = ProductVariation::create(['type' => 'default']);
++    $priceListItem->setPurchasedEntityId($variation);
++    $this->assertEquals($variation->id(), $priceListItem->getPurchasedEntityId());
++
++    $priceListItem->setStartDate(new DrupalDateTime('2018-04-24'));
++    $this->assertEquals('2018-04-24', $priceListItem->getStartDate()->format('Y-m-d'));
++
++    $priceListItem->setEndDate(new DrupalDateTime('2018-04-24'));
++    $this->assertEquals('2018-04-24', $priceListItem->getEndDate()->format('Y-m-d'));
++
++  }
++
++}
+diff --git a/tests/src/Kernel/Entity/PriceListTest.php b/tests/src/Kernel/Entity/PriceListTest.php
+new file mode 100644
+index 0000000..edf3d63
+--- /dev/null
++++ b/tests/src/Kernel/Entity/PriceListTest.php
+@@ -0,0 +1,131 @@
++<?php
++
++namespace Drupal\Tests\commerce_pricelist\Kernel\Entity;
++
++use Drupal\commerce_pricelist\Entity\PriceList;
++use Drupal\commerce_pricelist\Entity\PriceListType;
++use Drupal\field\Entity\FieldConfig;
++use Drupal\Tests\commerce_pricelist\Kernel\PriceListKernelTestBase;
++
++/**
++ * Tests the PriceList entity.
++ *
++ * @coversDefaultClass \Drupal\commerce_pricelist\Entity\PriceList
++ *
++ * @group commerce_pricelist
++ */
++class PriceListTest extends PriceListKernelTestBase {
++
++  /**
++   * A sample user.
++   *
++   * @var \Drupal\user\UserInterface
++   */
++  protected $user;
++
++  /**
++   * {@inheritdoc}
++   */
++  protected function setUp() {
++    parent::setUp();
++
++    $user = $this->createUser();
++    $this->user = $this->reloadEntity($user);
++  }
++
++  /**
++   * @covers ::getName
++   * @covers ::setName
++   * @covers ::getCreatedTime
++   * @covers ::setCreatedTime
++   * @covers ::getOwner
++   * @covers ::setOwner
++   * @covers ::getOwnerId
++   * @covers ::setOwnerId
++   */
++  public function testPriceList() {
++    $priceList = PriceList::create(
++      [
++        'type' => 'default',
++      ]
++    );
++    $priceList->save();
++
++    $priceList->setName('My Testtitle');
++    $this->assertEquals('My Testtitle', $priceList->getName());
++
++    $priceList->setCreatedTime(635879700);
++    $this->assertEquals(635879700, $priceList->getCreatedTime());
++
++    $priceList->setOwner($this->user);
++    $this->assertEquals($this->user, $priceList->getOwner());
++    $this->assertEquals($this->user->id(), $priceList->getOwnerId());
++    $priceList->setOwnerId(0);
++    $this->assertEquals(NULL, $priceList->getOwner());
++    $priceList->setOwnerId($this->user->id());
++    $this->assertEquals($this->user, $priceList->getOwner());
++    $this->assertEquals($this->user->id(), $priceList->getOwnerId());
++
++  }
++
++  /**
++   * Whether the required fields are attached to the PriceList entity.
++   */
++  public function testFieldsGetAttached() {
++
++    $priceList = PriceList::create(
++      [
++        'type' => 'default',
++      ]
++    );
++    $priceList->save();
++    $this->assertEquals('default', $priceList->bundle());
++
++    // Confirm the attached price list item field is there.
++    $this->assertTrue($priceList->hasField('field_price_list_item'));
++    $created_field = $priceList->getFieldDefinition('field_price_list_item');
++    $this->assertInstanceOf(FieldConfig::class, $created_field);
++    $this->assertEquals('price_list_item', $created_field->getSetting('target_type'));
++    $this->assertEquals('default:price_list_item', $created_field->getSetting('handler'));
++
++    // Confirm the attached store field is there.
++    $this->assertTrue($priceList->hasField('field_stores'));
++    $created_field = $priceList->getFieldDefinition('field_stores');
++    $this->assertInstanceOf(FieldConfig::class, $created_field);
++    $this->assertEquals('commerce_store', $created_field->getSetting('target_type'));
++    $this->assertEquals('default:commerce_store', $created_field->getSetting('handler'));
++
++    PriceListType::create(
++      [
++        'id' => 'test',
++        'label' => 'Test',
++        'description' => 'My random product list type',
++      ]
++    )->save();
++
++    $priceList = PriceList::create(
++      [
++        'type' => 'test',
++      ]
++    );
++    $priceList->save();
++    $this->assertEquals('test', $priceList->bundle());
++
++    // Note this are intentional failing tests until #2966977 is solved.
++    // @see https://www.drupal.org/project/commerce_pricelist/issues/2966977
++    // Confirm the attached price list item field is there.
++    $this->assertTrue($priceList->hasField('field_price_list_item'));
++    $created_field = $priceList->getFieldDefinition('field_price_list_item');
++    $this->assertInstanceOf(FieldConfig::class, $created_field);
++    $this->assertEquals('price_list_item', $created_field->getSetting('target_type'));
++    $this->assertEquals('default:price_list_item', $created_field->getSetting('handler'));
++
++    // Confirm the attached store field is there.
++    $this->assertTrue($priceList->hasField('field_stores'));
++    $created_field = $priceList->getFieldDefinition('field_stores');
++    $this->assertInstanceOf(FieldConfig::class, $created_field);
++    $this->assertEquals('commerce_store', $created_field->getSetting('target_type'));
++    $this->assertEquals('default:commerce_store', $created_field->getSetting('handler'));
++  }
++
++}
+diff --git a/tests/src/Kernel/PriceListKernelTestBase.php b/tests/src/Kernel/PriceListKernelTestBase.php
+new file mode 100644
+index 0000000..99690c7
+--- /dev/null
++++ b/tests/src/Kernel/PriceListKernelTestBase.php
+@@ -0,0 +1,44 @@
++<?php
++
++namespace Drupal\Tests\commerce_pricelist\Kernel;
++
++use Drupal\Tests\commerce\Kernel\CommerceKernelTestBase;
++
++/**
++ * Base class for commerce pricelist kernel tests.
++ *
++ * @requires module commerce_pricelist
++ */
++abstract class PriceListKernelTestBase extends CommerceKernelTestBase {
++
++  /**
++   * Modules to enable.
++   *
++   * Note that when a child class declares its own $modules list, that list
++   * doesn't override this one, it just extends it.
++   *
++   * @var array
++   */
++  public static $modules = [
++    'commerce_pricelist',
++    'commerce_product',
++  ];
++
++  /**
++   * {@inheritdoc}
++   */
++  protected function setUp() {
++    parent::setUp();
++
++    $this->installEntitySchema('price_list');
++    $this->installEntitySchema('price_list_type');
++    $this->installEntitySchema('price_list_item');
++    $this->installEntitySchema('price_list_item_type');
++
++    $this->installConfig(['commerce_pricelist']);
++
++    $user = $this->createUser();
++    $this->user = $this->reloadEntity($user);
++  }
++
++}
