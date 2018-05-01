@@ -2,14 +2,14 @@
 
 namespace Drupal\commerce_pricelist\Form;
 
-use Drupal\Core\Entity\EntityConfirmFormBase;
+use Drupal\commerce\Form\CommerceBundleEntityDeleteFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
 /**
  * Builds the form to delete Price list type entities.
  */
-class PriceListTypeDeleteForm extends EntityConfirmFormBase {
+class PriceListTypeDeleteForm extends CommerceBundleEntityDeleteFormBase {
 
   /**
    * {@inheritdoc}

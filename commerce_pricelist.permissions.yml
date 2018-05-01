@@ -7,3 +7,8 @@ administer price list item entities:
   title: 'Administer Price list item entities'
   description: 'Allow to access the administration form to configure Price list item entities.'
   restrict access: true
+
+administer price_list_types:
+  title: 'Administer price list types'
+  description: 'Allow to access the administration form to configure price list types.'
+  restrict access: true
