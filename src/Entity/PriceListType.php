@@ -10,7 +10,15 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
  * @ConfigEntityType(
  *   id = "price_list_type",
  *   label = @Translation("Price list type"),
+ *   label_collection = @Translation("Price list types"),
+ *   label_singular = @Translation("price list type"),
+ *   label_plural = @Translation("price list types"),
+ *   label_count = @PluralTranslation(
+ *     singular = "@count price list type",
+ *     plural = "@count price list types",
+ *   ),
  *   handlers = {
+ *     "access" = "Drupal\commerce\CommerceBundleAccessControlHandler",
  *     "list_builder" = "Drupal\commerce_pricelist\PriceListTypeListBuilder",
  *     "form" = {
  *       "add" = "Drupal\commerce_pricelist\Form\PriceListTypeForm",
@@ -18,11 +26,11 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
  *       "delete" = "Drupal\commerce_pricelist\Form\PriceListTypeDeleteForm"
  *     },
  *     "route_provider" = {
- *       "html" = "Drupal\commerce_pricelist\PriceListTypeHtmlRouteProvider",
+ *        "default" = "Drupal\Core\Entity\Routing\DefaultHtmlRouteProvider",
  *     },
  *   },
  *   config_prefix = "price_list_type",
- *   admin_permission = "administer site configuration",
+ *   admin_permission = "administer price_list_type",
  *   bundle_of = "price_list",
  *   entity_keys = {
  *     "id" = "id",
@@ -30,7 +38,6 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
  *     "uuid" = "uuid"
  *   },
  *   links = {
- *     "canonical" = "/admin/commerce/config/price_list_type/{price_list_type}",
  *     "add-form" = "/admin/commerce/config/price_list_type/add",
  *     "edit-form" = "/admin/commerce/config/price_list_type/{price_list_type}/edit",
  *     "delete-form" = "/admin/commerce/config/price_list_type/{price_list_type}/delete",
@@ -39,6 +46,7 @@ use Drupal\commerce\Entity\CommerceBundleEntityBase;
  * )
  */
 class PriceListType extends CommerceBundleEntityBase implements PriceListTypeInterface {
+
   /**
    * A brief description of this store type.
    *
