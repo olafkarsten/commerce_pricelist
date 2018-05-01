@@ -173,8 +173,7 @@ interface PriceListInterface extends ContentEntityInterface, EntityChangedInterf
   public function available();
 
   /**
-   * Gets the weight of the price list in relation to others. The price list
-   * with the highest weight wins. In case.
+   * Gets the weight of the price list in relation to others.
    *
    * @return int
    *   The weight.
